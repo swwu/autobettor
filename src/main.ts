@@ -1,21 +1,28 @@
 import puppeteer from 'puppeteer';
 import express from 'express';
 
+import * as bookmaker from './actions/bookmaker';
+
 const app = express();
 
-app.get('/', (req, res) =>
-  (async () => {
-    const browser = await puppeteer.launch({
-      headless: false
-    });
-    const page = await browser.newPage();
-    await page.goto('https://google.com');
-    //await page.pdf({path: 'google.pdf'});
+(async () => {
+  const browser = await puppeteer.launch({
+    headless: false
+  });
+  const page = await browser.newPage();
+  await page.setViewport({
+    width: 1200,
+    height: 800
+  })
+  await bookmaker.doLogin(page);
+  await bookmaker.navToBets(page);
+  //await page.pdf({path: 'google.pdf'});
 
-    //await browser.close();
-    res.send("halp");
-  })()
-);
+  //await browser.close();
+})();
+//app.get('/', (req, res) =>
+  //res.send("halp");
+//);
 
 var port: number = 3030;
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))

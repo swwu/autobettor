@@ -14,8 +14,7 @@ const app = express();
     width: 1200,
     height: 800
   })
-  await bookmaker.doLogin(page);
-  await bookmaker.navToBets(page);
+  console.log(await bookmaker.getBets(page));
   //await page.pdf({path: 'google.pdf'});
 
   //await browser.close();

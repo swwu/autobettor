@@ -5,23 +5,28 @@ import * as bookmaker from './actions/bookmaker';
 
 const app = express();
 
+
 (async () => {
   const browser = await puppeteer.launch({
     headless: false
   });
-  const page = await browser.newPage();
-  await page.setViewport({
-    width: 1200,
-    height: 800
-  })
-  console.log(await bookmaker.getBets(page));
-  //await page.pdf({path: 'google.pdf'});
 
-  //await browser.close();
+  app.get('/get_bets', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+
+		const page = await browser.newPage();
+		await page.setViewport({
+			width: 1200,
+			height: 800
+		});
+
+    var v: Array<bookmaker.MatchInfo> = await bookmaker.getBets(page);
+
+    res.send(JSON.stringify(v));
+		page.close();
+  });
+
+  var port: number = 3030;
+  app.listen(port, () => console.log(`Example app listening on port ${port}!`))
 })();
-//app.get('/', (req, res) =>
-  //res.send("halp");
-//);
 
-var port: number = 3030;
-app.listen(port, () => console.log(`Example app listening on port ${port}!`))

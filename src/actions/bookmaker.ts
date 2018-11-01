@@ -9,15 +9,27 @@ interface PasswordInfo {
 const timeout = (ms: number) => new Promise(res => setTimeout(res, ms));
 const passwords: PasswordInfo = JSON.parse(fs.readFileSync('passwords.json', 'utf8'));
 
+// convert american-style odds (e.g. +110, -110) to decimal odds (e.g. 2.1,
+// 1.909)
+function conv_odds(odds: number): number {
+  if (odds < 0) {
+    return (-odds + 100) / -odds;
+  } else {
+    return (odds + 100) / 100;
+  }
+}
+
 export async function handleAuth(page: puppeteer.Page) {
-  await page.waitForSelector("#account");
+  await page.waitForSelector("#account, a[cat=\"TENNIS\"]");
+	if (await page.$("a[cat=\"TENNIS\"]")) { return; }
+
   await page.type("#account", passwords.username);
   await page.type("#password", passwords.password);
   await page.click("#loginBox > input[type=\"submit\"]");
 }
 
 export async function navToBets(page: puppeteer.Page) {
-  await page.goto('https://www.bookmaker.eu/');
+  await page.goto('https://bookmaker.eu/');
 
   await handleAuth(page);
   //bookmaker does two redirects in its login, so just wait for the selector
@@ -31,29 +43,27 @@ export async function navToBets(page: puppeteer.Page) {
   await page.click("a#league_12331");
 }
 
-interface MatchInfo {
+export interface MatchInfo {
   id: string
   // map of player name to odds
   odds: { [key: string]: number }
 }
 
+interface RawMatchInfo {
+  id: string
+  // map of player name to odds
+  odds: { [key: string]: string }
+}
+
 export async function getBets(page: puppeteer.Page) {
   await navToBets(page);
   await page.waitForSelector("app-game-mu");
-  var matchInfos = await page.evaluate(() => {
-    // convert american-style odds (e.g. +110, -110) to decimal odds (e.g. 2.1,
-    // 1.909)
-    function conv_odds(odds: number): number {
-      if (odds < 0) {
-        return (-odds + 100) / -odds;
-      } else {
-        return (odds + 100) / 100;
-      }
-    }
+  var rawMatchInfos: Array<RawMatchInfo> = await page.evaluate(() => {
 
-    var rets: Array<MatchInfo> = [];
+    var rets: Array<RawMatchInfo> = [];
 
     var betNodes: NodeListOf<HTMLElement> = document.querySelectorAll("app-game-mu div.sports-league-game");
+
     betNodes.forEach((betNode) => {
       var gameId = betNode.getAttribute("idgame");
 
@@ -64,7 +74,7 @@ export async function getBets(page: puppeteer.Page) {
         var namesCol = betCols[1];
         var oddsCol = betCols[2];
 
-        var matchInfo: MatchInfo = {
+        var matchInfo: RawMatchInfo = {
           id: gameId,
           odds: {}
         };
@@ -73,7 +83,7 @@ export async function getBets(page: puppeteer.Page) {
           var k = <HTMLElement> namesCol.childNodes[0].childNodes[i];
           var v = <HTMLElement> oddsCol.childNodes[0].childNodes[i];
 
-          matchInfo.odds[k.innerText] = conv_odds(parseInt(v.innerText));
+          matchInfo.odds[k.innerText] = v.innerText;
         }
 
         rets.push(matchInfo);
@@ -81,6 +91,20 @@ export async function getBets(page: puppeteer.Page) {
     });
     return rets
   });
+
+  var matchInfos: Array<MatchInfo> = [];
+  for (const rawMatchInfo of rawMatchInfos) {
+    var newMatchInfo: MatchInfo = {
+      id: rawMatchInfo.id,
+      odds: {}
+    };
+
+    for (const [k, v] of Object.entries(rawMatchInfo.odds)) {
+      newMatchInfo.odds[k] = conv_odds(parseInt(v));
+    }
+
+    matchInfos.push(newMatchInfo);
+  }
 
   return matchInfos;
 }

@@ -19,7 +19,7 @@ function conv_odds(odds: number): number {
   }
 }
 
-export async function handleAuth(page: puppeteer.Page) {
+async function handleAuth(page: puppeteer.Page) {
   await page.waitForSelector("#account, a[cat=\"TENNIS\"]");
 	if (await page.$("a[cat=\"TENNIS\"]")) { return; }
 
@@ -28,7 +28,7 @@ export async function handleAuth(page: puppeteer.Page) {
   await page.click("#loginBox > input[type=\"submit\"]");
 }
 
-export async function navToBets(page: puppeteer.Page) {
+async function navToBets(page: puppeteer.Page) {
   await page.goto('https://bookmaker.eu/');
 
   await handleAuth(page);
@@ -40,7 +40,10 @@ export async function navToBets(page: puppeteer.Page) {
   //await page.waitForSelector("a#league_12331", {
   //  visible: true
   //});
-  await page.click("a#league_12331");
+  // ATP
+  //await page.click("a#league_12331");
+  // WTA
+  await page.click("a#league_12332");
 }
 
 export interface MatchInfo {
@@ -53,12 +56,12 @@ interface RawMatchInfo {
   id: string
   // map of player name to odds
   odds: { [key: string]: string }
+  // map of player name to index (0 or 1)
+  playerIndex: { [key: string] : number }
 }
 
-export async function getBets(page: puppeteer.Page) {
-  await navToBets(page);
-  await page.waitForSelector("app-game-mu");
-  var rawMatchInfos: Array<RawMatchInfo> = await page.evaluate(() => {
+async function getRawMatchInfos(page: puppeteer.Page) {
+  return await page.evaluate(() => {
 
     var rets: Array<RawMatchInfo> = [];
 
@@ -76,14 +79,17 @@ export async function getBets(page: puppeteer.Page) {
 
         var matchInfo: RawMatchInfo = {
           id: gameId,
-          odds: {}
+          odds: {},
+          playerIndex: {}
         };
 
         for (var i=0; i<2; i++) {
           var k = <HTMLElement> namesCol.childNodes[0].childNodes[i];
           var v = <HTMLElement> oddsCol.childNodes[0].childNodes[i];
 
-          matchInfo.odds[k.innerText] = v.innerText;
+          const playerKey = k.innerText;
+          matchInfo.odds[playerKey] = v.innerText;
+          matchInfo.playerIndex[playerKey] = i;
         }
 
         rets.push(matchInfo);
@@ -91,7 +97,28 @@ export async function getBets(page: puppeteer.Page) {
     });
     return rets
   });
+}
 
+export async function getBankroll(page: puppeteer.Page) {
+  await navToBets(page);
+  await page.waitForSelector("app-player-balance");
+
+  const bankrollStr: string = await page.evaluate(
+    () => {
+      const balanceNode = document.querySelector("app-player-balance");
+      // TODO: actually handle this error
+      if (balanceNode) { return balanceNode.textContent; }
+      else { return "0"; }
+    });
+
+  return parseFloat(bankrollStr.substring(1).replace(/,/g, ''))
+}
+
+export async function getBets(page: puppeteer.Page) {
+  await navToBets(page);
+  await page.waitForSelector("app-game-mu");
+
+  const rawMatchInfos: Array<RawMatchInfo> = await getRawMatchInfos(page);
   var matchInfos: Array<MatchInfo> = [];
   for (const rawMatchInfo of rawMatchInfos) {
     var newMatchInfo: MatchInfo = {
@@ -107,4 +134,27 @@ export async function getBets(page: puppeteer.Page) {
   }
 
   return matchInfos;
+}
+
+export async function makeBet(page: puppeteer.Page, matchId: string, playerKey: string, amount: number) {
+  await navToBets(page);
+  await page.waitForSelector("app-game-mu");
+
+  const rawMatchInfos: Array<RawMatchInfo> = await getRawMatchInfos(page);
+  const rawMatchInfo = rawMatchInfos.find((e) => e.id === matchId);
+
+  if (!rawMatchInfo) return;
+
+  const playerIdx = rawMatchInfo.playerIndex[playerKey];
+  const playerOddsSelector = ".mline-" + (playerIdx+1);
+
+
+  // TODO: exception handle misses etc etc
+
+  const clickSelector = "app-game-mu div.sports-league-game[idgame=\"" + matchId + "\"] " + playerOddsSelector;
+  await page.click(clickSelector);
+  await page.type(".bet input[aria-label=\"Risk\"]", amount.toString());
+
+  // THIS ACTUALLY PLACES THE BET SO TURN OFF WHILE TESTING
+  //await page.click(".place-bet-container button");
 }

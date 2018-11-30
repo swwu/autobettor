@@ -21,7 +21,7 @@ function conv_odds(odds: number): number {
 
 async function handleAuth(page: puppeteer.Page) {
   await page.waitForSelector("#account, a[cat=\"TENNIS\"]");
-	if (await page.$("a[cat=\"TENNIS\"]")) { return; }
+  if (await page.$("a[cat=\"TENNIS\"]")) { return; }
 
   await page.type("#account", passwords.username);
   await page.type("#password", passwords.password);

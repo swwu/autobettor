@@ -17,39 +17,39 @@ const app = express();
   app.get('/get_bankroll', async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
 
-		const page = await browser.newPage();
-		await page.setViewport({
-			width: 1200,
-			height: 800
-		});
+    const page = await browser.newPage();
+    await page.setViewport({
+      width: 1200,
+      height: 800
+    });
 
     var v: number = await bookmaker.getBankroll(page);
 
     res.send(JSON.stringify(v));
-		page.close();
+    page.close();
   });
 
   app.get('/get_bets', async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
 
-		const page = await browser.newPage();
-		await page.setViewport({
-			width: 1200,
-			height: 800
-		});
+    const page = await browser.newPage();
+    await page.setViewport({
+      width: 1200,
+      height: 800
+    });
 
     var v: Array<bookmaker.MatchInfo> = await bookmaker.getBets(page);
 
     res.send(JSON.stringify(v));
-		page.close();
+    page.close();
   });
 
   app.post('/make_bet', async (req, res) => {
-		const page = await browser.newPage();
-		await page.setViewport({
-			width: 1200,
-			height: 800
-		});
+    const page = await browser.newPage();
+    await page.setViewport({
+      width: 1200,
+      height: 800
+    });
 
     await bookmaker.makeBet(page, req.body.match_id, req.body.player_key, 1);
 

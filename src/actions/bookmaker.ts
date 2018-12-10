@@ -35,15 +35,24 @@ async function navToBets(page: puppeteer.Page) {
   //bookmaker does two redirects in its login, so just wait for the selector
   //to show up instead of waiting for two loads
   await page.waitForSelector("a[cat=\"TENNIS\"]");
-  await page.click("a[cat=\"TENNIS\"]");
-  await timeout(500);
-  //await page.waitForSelector("a#league_12331", {
-  //  visible: true
-  //});
-  // ATP
-  //await page.click("a#league_12331");
-  // WTA
-  await page.click("a#league_12332");
+
+  // retry up to three times, since sometimes there's a splash promo that
+  // needs dismissing
+  for(let i=0; i<3; ++i) {
+    try {
+      await page.click("a[cat=\"TENNIS\"]");
+      await timeout(500);
+      // ATP
+      // await page.waitForSelector("a#league_12331", {timeout: 1000});
+      // await page.click("a#league_12331");
+      // WTA
+      await page.waitForSelector("a#league_12332", {timeout: 1000});
+      await page.click("a#league_12332");
+      break;
+    } catch(e) {
+      console.log(e);
+    }
+  }
 }
 
 export interface MatchInfo {
@@ -60,7 +69,7 @@ interface RawMatchInfo {
   playerIndex: { [key: string] : number }
 }
 
-async function getRawMatchInfos(page: puppeteer.Page) {
+async function getRawMatchInfosFromPage(page: puppeteer.Page) {
   return await page.evaluate(() => {
 
     var rets: Array<RawMatchInfo> = [];
@@ -99,26 +108,36 @@ async function getRawMatchInfos(page: puppeteer.Page) {
   });
 }
 
-export async function getBankroll(page: puppeteer.Page) {
-  await navToBets(page);
+export async function getBankrollFromPage(page: puppeteer.Page) {
   await page.waitForSelector("app-player-balance");
 
   const bankrollStr: string = await page.evaluate(
     () => {
-      const balanceNode = document.querySelector("app-player-balance");
+      // Total is third item in the dropdown list
+      const balanceNode = document.querySelector("a.dropdown-item:nth-child(3)");
       // TODO: actually handle this error
-      if (balanceNode) { return balanceNode.textContent; }
+      if (balanceNode && balanceNode.textContent) {
+        if (!balanceNode.textContent.startsWith("Total")) {
+          throw "balanceNode is not Total, text is: " + balanceNode.textContent;
+        }
+        return balanceNode.textContent.split(":")[1];
+      }
       else { return "0"; }
     });
 
-  return parseFloat(bankrollStr.substring(1).replace(/,/g, ''))
+  return parseFloat(bankrollStr.trim().substring(1).replace(/,/g, ''))
 }
 
-export async function getBets(page: puppeteer.Page) {
+export interface BetsAndBankroll {
+  bets: Array<MatchInfo>
+  bankroll: number
+}
+
+export async function getBetsAndBankroll(page: puppeteer.Page) {
   await navToBets(page);
   await page.waitForSelector("app-game-mu");
 
-  const rawMatchInfos: Array<RawMatchInfo> = await getRawMatchInfos(page);
+  const rawMatchInfos: Array<RawMatchInfo> = await getRawMatchInfosFromPage(page);
   var matchInfos: Array<MatchInfo> = [];
   for (const rawMatchInfo of rawMatchInfos) {
     var newMatchInfo: MatchInfo = {
@@ -133,14 +152,14 @@ export async function getBets(page: puppeteer.Page) {
     matchInfos.push(newMatchInfo);
   }
 
-  return matchInfos;
+  return {bets: matchInfos, bankroll: await getBankrollFromPage(page)};
 }
 
 export async function makeBet(page: puppeteer.Page, matchId: string, playerKey: string, amount: number) {
   await navToBets(page);
   await page.waitForSelector("app-game-mu");
 
-  const rawMatchInfos: Array<RawMatchInfo> = await getRawMatchInfos(page);
+  const rawMatchInfos: Array<RawMatchInfo> = await getRawMatchInfosFromPage(page);
   const rawMatchInfo = rawMatchInfos.find((e) => e.id === matchId);
 
   if (!rawMatchInfo) return;

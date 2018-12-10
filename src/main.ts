@@ -14,7 +14,7 @@ const app = express();
 
   app.use(bodyParser.urlencoded());
 
-  app.get('/get_bankroll', async (req, res) => {
+  app.get('/get_bets_and_bankroll', async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
 
     const page = await browser.newPage();
@@ -23,22 +23,7 @@ const app = express();
       height: 800
     });
 
-    var v: number = await bookmaker.getBankroll(page);
-
-    res.send(JSON.stringify(v));
-    page.close();
-  });
-
-  app.get('/get_bets', async (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-
-    const page = await browser.newPage();
-    await page.setViewport({
-      width: 1200,
-      height: 800
-    });
-
-    var v: Array<bookmaker.MatchInfo> = await bookmaker.getBets(page);
+    var v: bookmaker.BetsAndBankroll = await bookmaker.getBetsAndBankroll(page);
 
     res.send(JSON.stringify(v));
     page.close();

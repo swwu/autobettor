@@ -146,7 +146,7 @@ export async function getBetsAndBankroll(page: puppeteer.Page) {
     };
 
     for (const [k, v] of Object.entries(rawMatchInfo.odds)) {
-      newMatchInfo.odds[k] = conv_odds(parseInt(v));
+      newMatchInfo.odds[k] = parseFloat(v); //conv_odds(parseInt(v));
     }
 
     matchInfos.push(newMatchInfo);

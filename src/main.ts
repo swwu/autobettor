@@ -1,3 +1,5 @@
+import 'source-map-support/register';
+
 import puppeteer from 'puppeteer';
 import express from 'express';
 import bodyParser from 'body-parser';

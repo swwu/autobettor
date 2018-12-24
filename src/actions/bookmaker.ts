@@ -11,11 +11,16 @@ const passwords: PasswordInfo = JSON.parse(fs.readFileSync('passwords.json', 'ut
 
 // convert american-style odds (e.g. +110, -110) to decimal odds (e.g. 2.1,
 // 1.909)
-function conv_odds(odds: number): number {
-  if (odds < 0) {
-    return (-odds + 100) / -odds;
+function conv_odds_str(odds: string): number {
+  let odds_n = parseFloat(odds);
+  if (odds[0] == "+" || odds[0] == "-") {
+    if (odds_n < 0) {
+      return (-odds_n + 100) / -odds_n;
+    } else {
+      return (odds_n + 100) / 100;
+    }
   } else {
-    return (odds + 100) / 100;
+    return odds_n;
   }
 }
 
@@ -50,7 +55,11 @@ async function navToBets(page: puppeteer.Page) {
       await page.click("a#league_12332");
       break;
     } catch(e) {
-      console.log(e);
+      if (e.message.startsWith("Node is either not visible or not an HTMLElement")) {
+        console.log("Couldn't find node, clicking again");
+      } else {
+        console.log(e);
+      }
     }
   }
 }
@@ -146,7 +155,7 @@ export async function getBetsAndBankroll(page: puppeteer.Page) {
     };
 
     for (const [k, v] of Object.entries(rawMatchInfo.odds)) {
-      newMatchInfo.odds[k] = parseFloat(v); //conv_odds(parseInt(v));
+      newMatchInfo.odds[k] = conv_odds_str(v);
     }
 
     matchInfos.push(newMatchInfo);

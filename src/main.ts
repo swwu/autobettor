@@ -1,5 +1,7 @@
 import 'source-map-support/register';
 
+import fs from 'fs';
+
 import puppeteer from 'puppeteer';
 import express from 'express';
 import bodyParser from 'body-parser';
@@ -10,6 +12,10 @@ const app = express();
 
 
 (async () => {
+  if (!fs.existsSync('bet_screenshots')){
+      fs.mkdirSync('bet_screenshots');
+  }
+
   const browser = await puppeteer.launch({
     headless: false
   });
@@ -38,8 +44,11 @@ const app = express();
       height: 800
     });
 
-    await bookmaker.makeBet(page, req.body.match_id, req.body.player_key, 1);
+    await bookmaker.makeBet(page,
+      req.body.bet_uid, req.body.match_id,
+      req.body.player_key, req.body.amount);
 
+    res.send("");
     page.close();
   });
 

@@ -47,12 +47,18 @@ async function navToBets(page: puppeteer.Page) {
     try {
       await page.click("a[cat=\"TENNIS\"]");
       await timeout(500);
+      // TODO: should bundle the results for qualifiers into the main event
+      // (so ATP should include ATP qualifiers, WTA should include WTA
+      // qualifiers)
       // ATP
       // await page.waitForSelector("a#league_12331", {timeout: 1000});
       // await page.click("a#league_12331");
       // WTA
-      await page.waitForSelector("a#league_12332", {timeout: 1000});
-      await page.click("a#league_12332");
+      // await page.waitForSelector("a#league_12332", {timeout: 1000});
+      // await page.click("a#league_12332");
+      // wta qualifier lol
+      await page.waitForSelector("a#league_13570", {timeout: 1000});
+      await page.click("a#league_13570");
       break;
     } catch(e) {
       if (e.message.startsWith("Node is either not visible or not an HTMLElement")) {
@@ -164,7 +170,7 @@ export async function getBetsAndBankroll(page: puppeteer.Page) {
   return {bets: matchInfos, bankroll: await getBankrollFromPage(page)};
 }
 
-export async function makeBet(page: puppeteer.Page, matchId: string, playerKey: string, amount: number) {
+export async function makeBet(page: puppeteer.Page, betUid: string, matchId: string, playerKey: string, amount: number) {
   await navToBets(page);
   await page.waitForSelector("app-game-mu");
 
@@ -176,12 +182,15 @@ export async function makeBet(page: puppeteer.Page, matchId: string, playerKey: 
   const playerIdx = rawMatchInfo.playerIndex[playerKey];
   const playerOddsSelector = ".mline-" + (playerIdx+1);
 
-
   // TODO: exception handle misses etc etc
 
   const clickSelector = "app-game-mu div.sports-league-game[idgame=\"" + matchId + "\"] " + playerOddsSelector;
   await page.click(clickSelector);
   await page.type(".bet input[aria-label=\"Risk\"]", amount.toString());
+
+  // TODO: technically this is a security hole because it would allow
+  // arbitrary write access to any directory
+  await page.screenshot({path: "bet_screenshots/" + betUid + ".png"});
 
   // THIS ACTUALLY PLACES THE BET SO TURN OFF WHILE TESTING
   //await page.click(".place-bet-container button");

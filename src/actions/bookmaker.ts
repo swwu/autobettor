@@ -24,6 +24,16 @@ function conv_odds_str(odds: string): number {
   }
 }
 
+async function domIsVisible(page: puppeteer.Page, selector: string): Promise<boolean> {
+  return await page.evaluate((selector) => {
+    const e = document.querySelector(selector);
+    if (!e)
+      return false;
+    const style = window.getComputedStyle(e);
+    return style && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0' && e.offsetHeight !== 0;
+  }, selector);
+}
+
 async function handleAuth(page: puppeteer.Page) {
   await page.waitForSelector("#account, a[cat=\"TENNIS\"]");
   if (await page.$("a[cat=\"TENNIS\"]")) { return; }
@@ -33,32 +43,41 @@ async function handleAuth(page: puppeteer.Page) {
   await page.click("#loginBox > input[type=\"submit\"]");
 }
 
-async function navToBets(page: puppeteer.Page) {
-  await page.goto('https://bookmaker.eu/');
+async function navToSection(page: puppeteer.Page, section: string) {
 
-  await handleAuth(page);
   //bookmaker does two redirects in its login, so just wait for the selector
   //to show up instead of waiting for two loads
   await page.waitForSelector("a[cat=\"TENNIS\"]");
+
+  let btnSelector: string;
+  switch (section) {
+    case "atp":
+      btnSelector = "a#league_12331";
+      break;
+    case "atp_qual":
+      btnSelector = "a#league_13569";
+      break;
+    case "wta":
+      btnSelector = "a#league_12332";
+      break;
+    case "wta_qual":
+      btnSelector = "a#league_13570";
+      break;
+    default:
+      throw "Invalid section: " + section;
+  }
 
   // retry up to three times, since sometimes there's a splash promo that
   // needs dismissing
   for(let i=0; i<3; ++i) {
     try {
-      await page.click("a[cat=\"TENNIS\"]");
-      await timeout(500);
-      // TODO: should bundle the results for qualifiers into the main event
-      // (so ATP should include ATP qualifiers, WTA should include WTA
-      // qualifiers)
-      // ATP
-      // await page.waitForSelector("a#league_12331", {timeout: 1000});
-      // await page.click("a#league_12331");
-      // WTA
-      // await page.waitForSelector("a#league_12332", {timeout: 1000});
-      // await page.click("a#league_12332");
-      // wta qualifier lol
-      await page.waitForSelector("a#league_13570", {timeout: 1000});
-      await page.click("a#league_13570");
+      if (!(await domIsVisible(page, btnSelector))) {
+        await page.click("a[cat=\"TENNIS\"]");
+        await timeout(500);
+      }
+
+      await page.waitForSelector(btnSelector, {timeout: 2000});
+      await page.click(btnSelector);
       break;
     } catch(e) {
       if (e.message.startsWith("Node is either not visible or not an HTMLElement")) {
@@ -68,6 +87,12 @@ async function navToBets(page: puppeteer.Page) {
       }
     }
   }
+}
+
+async function doAuth(page: puppeteer.Page) {
+  await page.goto('https://bookmaker.eu/');
+
+  await handleAuth(page);
 }
 
 export interface MatchInfo {
@@ -148,8 +173,10 @@ export interface BetsAndBankroll {
   bankroll: number
 }
 
-export async function getBetsAndBankroll(page: puppeteer.Page) {
-  await navToBets(page);
+async function getBetsForSection(page: puppeteer.Page, section: string
+    ):Promise<Array<MatchInfo>> {
+  await navToSection(page, section);
+
   await page.waitForSelector("app-game-mu");
 
   const rawMatchInfos: Array<RawMatchInfo> = await getRawMatchInfosFromPage(page);
@@ -167,19 +194,40 @@ export async function getBetsAndBankroll(page: puppeteer.Page) {
     matchInfos.push(newMatchInfo);
   }
 
+  return matchInfos;
+}
+
+export async function getBetsAndBankroll(page: puppeteer.Page) {
+  await doAuth(page);
+
+  var matchInfos: Array<MatchInfo> = (
+    await getBetsForSection(page, "wta")).concat(
+    await getBetsForSection(page, "wta_qual"));
+
   return {bets: matchInfos, bankroll: await getBankrollFromPage(page)};
 }
 
-export async function makeBet(page: puppeteer.Page, betUid: string, matchId: string, playerKey: string, amount: number) {
-  await navToBets(page);
+async function tryBetInSection(
+    page: puppeteer.Page,
+    section: string,
+    betUid: string,
+    matchId: string,
+    playerKey: string,
+    amount: number): Promise<boolean> {
+
+  await navToSection(page, section);
+
   await page.waitForSelector("app-game-mu");
 
   const rawMatchInfos: Array<RawMatchInfo> = await getRawMatchInfosFromPage(page);
   const rawMatchInfo = rawMatchInfos.find((e) => e.id === matchId);
 
-  if (!rawMatchInfo) return;
+  if (!rawMatchInfo) return false;
 
   const playerIdx = rawMatchInfo.playerIndex[playerKey];
+
+  if (!playerIdx) return false;
+
   const playerOddsSelector = ".mline-" + (playerIdx+1);
 
   // TODO: exception handle misses etc etc
@@ -194,4 +242,19 @@ export async function makeBet(page: puppeteer.Page, betUid: string, matchId: str
 
   // THIS ACTUALLY PLACES THE BET SO TURN OFF WHILE TESTING
   //await page.click(".place-bet-container button");
+  return true
+}
+
+export async function makeBet(
+    page: puppeteer.Page,
+    betUid: string,
+    matchId: string,
+    playerKey: string,
+    amount: number) {
+  await doAuth(page);
+
+  if (!(await tryBetInSection(page, "wta", betUid, matchId, playerKey, amount))
+      && !(await tryBetInSection(page, "wta_qual", betUid, matchId, playerKey, amount))) {
+    throw "no bet was made, most likely invalid bet info: " + matchId + "," + playerKey;
+  }
 }

@@ -9,6 +9,9 @@ interface PasswordInfo {
 const timeout = (ms: number) => new Promise(res => setTimeout(res, ms));
 const passwords: PasswordInfo = JSON.parse(fs.readFileSync('passwords.json', 'utf8'));
 
+const ATP_SECTIONS = ["atp", "atp_qual"];
+const WTA_SECTIONS = ["wta", "wta_qual"];
+
 // convert american-style odds (e.g. +110, -110) to decimal odds (e.g. 2.1,
 // 1.909)
 function conv_odds_str(odds: string): number {
@@ -22,6 +25,13 @@ function conv_odds_str(odds: string): number {
   } else {
     return odds_n;
   }
+}
+
+async function promiseSerial<T>(promises: Array<Promise<T>>): Promise<Array<T>> {
+  return promises.reduce((chain: Promise<Array<T>>, next: Promise<T>): Promise<Array<T>> =>
+    chain.then((chainResult: Array<T>): Promise<Array<T>> => next.then(
+      (nextResult: T): Array<T> => chainResult.concat([nextResult]))),
+    Promise.resolve([]))
 }
 
 async function domIsVisible(page: puppeteer.Page, selector: string): Promise<boolean> {
@@ -43,8 +53,7 @@ async function handleAuth(page: puppeteer.Page) {
   await page.click("#loginBox > input[type=\"submit\"]");
 }
 
-async function navToSection(page: puppeteer.Page, section: string) {
-
+async function navToSection(page: puppeteer.Page, section: string): Promise<boolean> {
   //bookmaker does two redirects in its login, so just wait for the selector
   //to show up instead of waiting for two loads
   await page.waitForSelector("a[cat=\"TENNIS\"]");
@@ -81,12 +90,17 @@ async function navToSection(page: puppeteer.Page, section: string) {
       break;
     } catch(e) {
       if (e.message.startsWith("Node is either not visible or not an HTMLElement")) {
-        console.log("Couldn't find node, clicking again");
+        console.log("Couldn't find visible menu section node, clicking again");
+      } else if (e.message.startsWith("waiting for selector")) {
+        console.log("Button doesn't exist, aborting");
+        return false;
       } else {
         console.log(e);
       }
     }
   }
+
+  return true;
 }
 
 async function doAuth(page: puppeteer.Page) {
@@ -112,7 +126,7 @@ interface RawMatchInfo {
 async function getRawMatchInfosFromPage(page: puppeteer.Page) {
   return await page.evaluate(() => {
 
-    var rets: Array<RawMatchInfo> = [];
+    var rets: RawMatchInfo[] = [];
 
     var betNodes: NodeListOf<HTMLElement> = document.querySelectorAll("app-game-mu div.sports-league-game");
 
@@ -169,18 +183,19 @@ export async function getBankrollFromPage(page: puppeteer.Page) {
 }
 
 export interface BetsAndBankroll {
-  bets: Array<MatchInfo>
+  bets: MatchInfo[]
   bankroll: number
 }
 
 async function getBetsForSection(page: puppeteer.Page, section: string
-    ):Promise<Array<MatchInfo>> {
-  await navToSection(page, section);
+    ): Promise<MatchInfo[]> {
+  if(!(await navToSection(page, section)))
+    return [];
 
-  await page.waitForSelector("app-game-mu");
+  await page.waitForSelector("div.schedule-container");
 
-  const rawMatchInfos: Array<RawMatchInfo> = await getRawMatchInfosFromPage(page);
-  var matchInfos: Array<MatchInfo> = [];
+  const rawMatchInfos: RawMatchInfo[] = await getRawMatchInfosFromPage(page);
+  var matchInfos: MatchInfo[] = [];
   for (const rawMatchInfo of rawMatchInfos) {
     var newMatchInfo: MatchInfo = {
       id: rawMatchInfo.id,
@@ -197,13 +212,24 @@ async function getBetsForSection(page: puppeteer.Page, section: string
   return matchInfos;
 }
 
-export async function getBetsAndBankroll(page: puppeteer.Page) {
+export async function getBetsAndBankroll(page: puppeteer.Page, kind: string) {
   await doAuth(page);
 
-  var matchInfos: Array<MatchInfo> = (
-    await getBetsForSection(page, "wta")).concat(
-    await getBetsForSection(page, "wta_qual"));
+  let sections: string[] = []
 
+  if (kind == "atp") {
+    sections = ATP_SECTIONS;
+  } else if (kind == "wta") {
+    sections = WTA_SECTIONS;
+  }
+
+  let results: MatchInfo[][] = await promiseSerial(
+    sections.map((x) => getBetsForSection(page, x)));
+
+  let matchInfos: MatchInfo[] = ([] as MatchInfo[]).concat(...results);
+
+  // doesn't matter where, we're just going there to get the bankroll
+  await navToSection(page, "atp");
   return {bets: matchInfos, bankroll: await getBankrollFromPage(page)};
 }
 
@@ -214,19 +240,19 @@ async function tryBetInSection(
     matchId: string,
     playerKey: string,
     amount: number): Promise<boolean> {
+  if(!(await navToSection(page, section)))
+    return false;
 
-  await navToSection(page, section);
+  await page.waitForSelector("div.schedule-container");
 
-  await page.waitForSelector("app-game-mu");
-
-  const rawMatchInfos: Array<RawMatchInfo> = await getRawMatchInfosFromPage(page);
+  const rawMatchInfos: RawMatchInfo[] = await getRawMatchInfosFromPage(page);
   const rawMatchInfo = rawMatchInfos.find((e) => e.id === matchId);
 
-  if (!rawMatchInfo) return false;
+  if (rawMatchInfo === undefined) return false;
 
   const playerIdx = rawMatchInfo.playerIndex[playerKey];
 
-  if (!playerIdx) return false;
+  if (playerIdx === undefined) return false;
 
   const playerOddsSelector = ".mline-" + (playerIdx+1);
 
@@ -247,14 +273,30 @@ async function tryBetInSection(
 
 export async function makeBet(
     page: puppeteer.Page,
+    kind: string,
     betUid: string,
     matchId: string,
     playerKey: string,
     amount: number) {
   await doAuth(page);
 
-  if (!(await tryBetInSection(page, "wta", betUid, matchId, playerKey, amount))
-      && !(await tryBetInSection(page, "wta_qual", betUid, matchId, playerKey, amount))) {
+  let sections: string[] = []
+
+  if (kind == "atp") {
+    sections = ATP_SECTIONS;
+  } else if (kind == "wta") {
+    sections = WTA_SECTIONS;
+  }
+
+  let succeeded = false;
+  for (let section of sections) {
+    if (await tryBetInSection(page, section, betUid, matchId, playerKey, amount)) {
+      succeeded = true;
+      break;
+    }
+  }
+
+  if (!succeeded) {
     throw "no bet was made, most likely invalid bet info: " + matchId + "," + playerKey;
   }
 }

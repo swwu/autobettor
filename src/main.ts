@@ -31,7 +31,8 @@ const app = express();
       height: 800
     });
 
-    var v: bookmaker.BetsAndBankroll = await bookmaker.getBetsAndBankroll(page);
+    var v: bookmaker.BetsAndBankroll = await bookmaker.getBetsAndBankroll(
+      page, req.query["kind"]);
 
     res.send(JSON.stringify(v));
     page.close();
@@ -44,9 +45,9 @@ const app = express();
       height: 800
     });
 
-    await bookmaker.makeBet(page,
-      req.body.bet_uid, req.body.match_id,
-      req.body.player_key, req.body.amount);
+    await bookmaker.makeBet(page, req.body["kind"],
+      req.body["bet_uid"], req.body["match_id"],
+      req.body["player_key"], req.body["amount"]);
 
     res.send("");
     page.close();

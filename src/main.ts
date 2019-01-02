@@ -6,6 +6,8 @@ import puppeteer from 'puppeteer';
 import express from 'express';
 import bodyParser from 'body-parser';
 
+import morgan from 'morgan';
+
 import * as bookmaker from './actions/bookmaker';
 
 const app = express();
@@ -21,6 +23,9 @@ const app = express();
   });
 
   app.use(bodyParser.urlencoded());
+
+  // setup the logger
+  app.use(morgan('combined', {immediate: true}))
 
   app.get('/get_bets_and_bankroll', async (req, res) => {
     res.setHeader('Content-Type', 'application/json');

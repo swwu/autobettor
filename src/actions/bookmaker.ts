@@ -223,6 +223,8 @@ export async function getBetsAndBankroll(page: puppeteer.Page, kind: string) {
     sections = WTA_SECTIONS;
   }
 
+  // TODO: retry if completely empty (sometimes timing issues happen with
+  // await + rendering)
   let results: MatchInfo[][] = await promiseSerial(
     sections.map((x) => getBetsForSection(page, x)));
 
@@ -267,7 +269,10 @@ async function tryBetInSection(
   await page.screenshot({path: "bet_screenshots/" + betUid + ".png"});
 
   // THIS ACTUALLY PLACES THE BET SO TURN OFF WHILE TESTING
-  //await page.click(".place-bet-container button");
+  await page.click(".place-bet-container button");
+  // let the bet AJAX request resolve
+  // TODO: await the confirmation message selector instead
+  await timeout(600);
   return true
 }
 

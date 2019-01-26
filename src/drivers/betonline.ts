@@ -2,6 +2,13 @@ import puppeteer from 'puppeteer';
 
 import * as shared from './shared';
 
+declare global {
+  interface Window {
+    __autobettorShared: {
+      validateEventNode: (eventNode: HTMLElement) => HTMLElement[] | null;
+    };
+  }
+}
 
 export class BetonlineDriver extends shared.BaseBetDriver {
 
@@ -43,6 +50,39 @@ export class BetonlineDriver extends shared.BaseBetDriver {
     await shared.timeout(1000);
   }
 
+  async _insertSharedJs(page: puppeteer.Page) {
+    page.evaluate(() => {
+      if (window.__autobettorShared) return;
+
+      window.__autobettorShared = {
+        // returns a list of (exactly 2) playerRows if they are valid,
+        // otherwise returns null
+        validateEventNode: function(eventNode: HTMLElement): HTMLElement[] | null {
+          // TODO: this is a copy of getRawMatchInfos, find some way to share
+          // code inside DOM execution context
+          let playerRows: HTMLElement[] = [];
+          ["tr.firstline", "tr.otherline"].forEach(function(s) {
+            let n = eventNode.querySelector(s);
+            if (n) playerRows.push(n as HTMLElement);
+          });
+
+          if (playerRows.length != 2) {
+            console.log("Bad player rows: " + playerRows);
+            return null;
+          }
+
+          const firstTeamNode: HTMLElement | null = playerRows[0].querySelector(".col_teamname");
+          // we only want the actual match outcome, which is always "Lname, Fname"
+          // (most of the props are only lname, e.g. "Lname Sets" or "Lname Double Faults")
+          if (firstTeamNode && !firstTeamNode.innerText.includes(","))
+            return null;
+
+          return playerRows;
+        }
+      };
+    });
+  }
+
   async getBankrollFromPage(page: puppeteer.Page): Promise<number> {
     await page.waitForSelector("#CurrentBalance");
 
@@ -68,6 +108,7 @@ export class BetonlineDriver extends shared.BaseBetDriver {
   }
 
   async getRawMatchInfosFromPage(page: puppeteer.Page) {
+    this._insertSharedJs(page);
     return await page.evaluate(() => {
 
       let rets: shared.RawMatchInfo[] = [];
@@ -75,22 +116,8 @@ export class BetonlineDriver extends shared.BaseBetDriver {
       const eventNodes: NodeListOf<HTMLElement> = document.querySelectorAll("tbody.event");
 
       eventNodes.forEach((eventNode) => {
-        let playerRows: HTMLElement[] = [];
-        ["tr.firstline", "tr.otherline"].forEach(function(s) {
-          let n = eventNode.querySelector(s);
-          if (n) playerRows.push(n as HTMLElement);
-        });
-
-        if (playerRows.length != 2) {
-          console.log("Bad player rows: " + playerRows);
-          return;
-        }
-
-        const firstTeamNode: HTMLElement | null = playerRows[0].querySelector(".col_teamname");
-        // we only want the actual match outcome, which is always "Lname, Fname"
-        // (most of the props are only lname, e.g. "Lname Sets" or "Lname Double Faults")
-        if (firstTeamNode && !firstTeamNode.innerText.includes(","))
-          return;
+        const playerRows: HTMLElement[] | null = window.__autobettorShared.validateEventNode(eventNode);
+        if (!playerRows) return;
 
         let matchInfo: shared.RawMatchInfo = {
           id: "",
@@ -144,6 +171,8 @@ export class BetonlineDriver extends shared.BaseBetDriver {
       await page.click("div.cross");
     }
 
+    this._insertSharedJs(page);
+
     const clickNode: puppeteer.ElementHandle = (await page.evaluateHandle((matchId, playerKey) => {
 
       const eventNodes: NodeListOf<HTMLElement> = document.querySelectorAll("tbody.event");
@@ -151,24 +180,8 @@ export class BetonlineDriver extends shared.BaseBetDriver {
       let clickNode: HTMLElement | null = null;
 
       Array.from(eventNodes).some((eventNode, idx): boolean => {
-        // TODO: this is a copy of getRawMatchInfos, find some way to share
-        // code inside DOM execution context
-        let playerRows: HTMLElement[] = [];
-        ["tr.firstline", "tr.otherline"].forEach(function(s) {
-          let n = eventNode.querySelector(s);
-          if (n) playerRows.push(n as HTMLElement);
-        });
-
-        if (playerRows.length != 2) {
-          console.log("Bad player rows: " + playerRows);
-          return false;
-        }
-
-        const firstTeamNode: HTMLElement | null = playerRows[0].querySelector(".col_teamname");
-        // we only want the actual match outcome, which is always "Lname, Fname"
-        // (most of the props are only lname, e.g. "Lname Sets" or "Lname Double Faults")
-        if (firstTeamNode && !firstTeamNode.innerText.includes(","))
-          return false;
+        const playerRows: HTMLElement[] | null = window.__autobettorShared.validateEventNode(eventNode);
+        if (!playerRows) return false;
 
         let names: string[] = [];
         let thisClickElem: HTMLElement | null = null;

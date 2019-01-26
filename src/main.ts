@@ -74,11 +74,11 @@ function getProviderDriver(provider: string): shared.BaseBetDriver {
         .makeBet(page, req.body["kind"],
           req.body["bet_uid"], req.body["match_id"],
           req.body["player_key"], req.body["amount"]);
+      res.send("");
     } catch(err) {
       next(err);
     }
 
-    res.send("");
     if (!TEST_MODE) page.close();
   });
 

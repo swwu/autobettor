@@ -30,7 +30,7 @@ export class BetonlineDriver extends shared.BaseBetDriver {
 
   async awaitAuthDone(page: puppeteer.Page): Promise<void> {
     await page.waitForNavigation({
-      waitUntil: "networkidle0",
+      waitUntil: "domcontentloaded",
       timeout: 60000 // betonline auth is slow af
       });
   }
@@ -200,8 +200,6 @@ export class BetonlineDriver extends shared.BaseBetDriver {
               // the clickable checkbox is the element right before the odds
               // label
               thisClickElem = (oddsNode.previousElementSibling as HTMLElement);
-              console.log(oddsNode);
-              console.log(thisClickElem);
             }
           } else {
             return false;

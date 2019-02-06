@@ -198,6 +198,7 @@ export class BaseBetDriver {
     let matchInfos: MatchInfo[] = ([] as MatchInfo[]).concat(...results);
 
     // doesn't matter where, we're just going there to get the bankroll
+    // TODO: make sure this works even when the atp section can't be accessed
     await this.navToSection(page, "atp");
     return {bets: matchInfos, bankroll: await this.getBankrollFromPage(page)};
   }

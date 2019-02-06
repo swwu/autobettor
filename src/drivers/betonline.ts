@@ -36,7 +36,7 @@ export class BetonlineDriver extends shared.BaseBetDriver {
   }
 
   async navToSection(page: puppeteer.Page, section: string): Promise<boolean> {
-    page.goto("https://www.betonline.ag/sportsbook/tennis/" + section, {
+    await page.goto("https://www.betonline.ag/sportsbook/tennis/" + section, {
       waitUntil: "networkidle0"
     })
     await page.waitForSelector(".sportsPeriodTdCol1");

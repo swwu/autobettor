@@ -2,7 +2,7 @@ import puppeteer from 'puppeteer';
 
 import * as shared from './shared';
 
-const ATP_SECTIONS = ["atp", "atp_qual"];
+const ATP_SECTIONS = ["atp", "atp_qual", "atp_chal"];
 const WTA_SECTIONS = ["wta", "wta_qual"];
 
 
@@ -10,7 +10,8 @@ const sectionBtnLabels: { [key:string]: string } = {
   "atp": "a#league_12331",
   "wta": "a#league_12332",
   "atp_qual": "a#league_13569",
-  "wta_qual": "a#league_13570"
+  "wta_qual": "a#league_13570",
+  "atp_chal": "a#league_13558"
 };
 
 // See shared.BaseBetDriver for the expected behavior of each method
@@ -80,6 +81,8 @@ export class BookmakerDriver extends shared.BaseBetDriver {
     // this selector exists on the tennis page but not the default football
     // one
     await page.waitForSelector("app-game-mu div.sports-league-game");
+
+    await shared.timeout(500);
   }
 
   async getBankrollFromPage(page: puppeteer.Page): Promise<number> {

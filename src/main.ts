@@ -28,7 +28,7 @@ function getProviderDriver(provider: string): shared.BaseBetDriver {
   }
 
   const browser = await puppeteer.launch({
-    headless: false
+    headless: !TEST_MODE
   });
 
   app.use(bodyParser.urlencoded({extended: true}));
@@ -83,6 +83,6 @@ function getProviderDriver(provider: string): shared.BaseBetDriver {
   });
 
   let port: number = 3030;
-  app.listen(port, () => console.log(`Example app listening on port ${port}!`))
+  app.listen(port, () => console.log(`Listening on port ${port}, test_mode is ${TEST_MODE}`))
 })();
 

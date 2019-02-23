@@ -174,8 +174,41 @@ export class BookmakerDriver extends shared.BaseBetDriver {
     const clickSelector = "app-game-mu div.sports-league-game[idgame=\"" + matchId + "\"] " + playerOddsSelector;
     await page.click(clickSelector);
 
-    // TODO: if the bet amount is greater than the maximum risk amount
-    // displayed, then bet that amount instead
+    const maxAmountSelector = ".col.bet-limits > a:nth-child(2) .amount";
+
+    await page.waitForSelector(maxAmountSelector);
+
+    let maxAmountStr = "";
+    for (let i=0; i<5; i++) {
+      maxAmountStr = await page.evaluate((maxAmountSelector: string): string => {
+        const maxAmountNode = document.querySelector(maxAmountSelector);
+        console.log(maxAmountNode);
+        if (maxAmountNode && maxAmountNode.textContent) {
+          console.log("halp");
+          return maxAmountNode.textContent;
+        } else {
+          console.log("holp");
+          return "";
+        }
+      }, maxAmountSelector);
+
+      if (maxAmountStr) {
+        break;
+      }
+
+      // this number gets loaded via an ajax call, so retry and wait a few times
+      await shared.timeout(200);
+    }
+
+    if (!maxAmountStr) {
+      throw new Error("Couldn't find max amount node");
+    }
+
+    const maxAmount = shared.parseMoneyStr(maxAmountStr);
+
+    // if the bet amount is greater than the maximum risk amount displayed,
+    // then bet that amount instead
+    amount = Math.min(maxAmount, amount);
 
     await page.type(".bet input[aria-label=\"Risk\"]", amount.toString());
 

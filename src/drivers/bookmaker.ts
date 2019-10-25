@@ -82,7 +82,7 @@ export class BookmakerDriver extends shared.BaseBetDriver {
     // one
     await page.waitForSelector("app-game-mu div.sports-league-game");
 
-    await shared.timeout(500);
+    await shared.timeout(800);
   }
 
   async getBankrollFromPage(page: puppeteer.Page): Promise<number> {
@@ -118,7 +118,8 @@ export class BookmakerDriver extends shared.BaseBetDriver {
         let gameId = betNode.getAttribute("idgame");
 
         if (gameId != null) {
-          let betCols = betNode.childNodes[0].childNodes;
+          let betCols = betNode.children[0].children;
+          console.log(betCols);
 
           // col 0 is time, col 1 is names, col 2 is moneyline odds
           let namesCol = betCols[1];
@@ -131,8 +132,8 @@ export class BookmakerDriver extends shared.BaseBetDriver {
           };
 
           for (let i=0; i<2; i++) {
-            let k = <HTMLElement> namesCol.childNodes[0].childNodes[i];
-            let v = <HTMLElement> oddsCol.childNodes[0].childNodes[i];
+            let k = <HTMLElement> namesCol.children[0].children[i];
+            let v = <HTMLElement> oddsCol.children[0].children[i];
 
             const playerKey = k.innerText;
             matchInfo.odds[playerKey] = v.innerText;

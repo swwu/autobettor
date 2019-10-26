@@ -7,6 +7,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 
 import morgan from 'morgan';
+import morganBody from 'morgan-body';
 
 import * as bookmaker from './drivers/bookmaker';
 import * as betonline from './drivers/betonline';
@@ -34,7 +35,10 @@ let browsers = new browserManager.BrowserManager(TEST_MODE, 30*60*1000);
   app.use(bodyParser.urlencoded({extended: true}));
 
   // setup the logger
-  app.use(morgan('combined', {immediate: true}))
+  morganBody(app, {
+    dateTimeFormat: 'utc',
+    prettify: false
+  });
 
   app.get('/get_bets_and_bankroll', async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');

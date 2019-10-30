@@ -2,6 +2,10 @@ import puppeteer from 'puppeteer';
 
 import { v4 as uuidv4 } from 'uuid';
 
+function logPrefixNowString(): string {
+  return "[" + (new Date().toUTCString()) + "] ";
+}
+
 export class BrowserManager {
   testMode: boolean;
   maxBrowserAge: number;
@@ -37,7 +41,7 @@ export class BrowserManager {
     // if the browser is too old then start fetching a new one
     const browserAge = Date.now() - this.currentBrowserStartMs;
     if (browserAge > this.maxBrowserAge) {
-      console.log("Browser " + this.currentBrowserId +
+      console.log(logPrefixNowString() + "Browser " + this.currentBrowserId +
         " too old (" + browserAge + "ms), starting new browser");
       let _this = this;
       this.browserFetchPromise = this._launchBrowser()
@@ -54,7 +58,7 @@ export class BrowserManager {
           _this.allBrowsers[browserId] = browser;
           _this.allBrowserLatches[browserId] = 0;
 
-          console.log("Browser " + browserId + " started");
+          console.log(logPrefixNowString() + "Browser " + browserId + " started");
           return browser;
         });
       return await this.browserFetchPromise;
@@ -69,7 +73,7 @@ export class BrowserManager {
   _closeBrowserIfDone(browserId: string) {
     // we're only done when latch is zero
     if (this.allBrowserLatches[browserId] == 0) {
-      console.log("Browser " + browserId + " done, closing");
+      console.log(logPrefixNowString() + "Browser " + browserId + " done, closing");
       // don't need to await this, since nothing depends on it being finished
       // TODO: decide if we want to do this in testmode?
       this.allBrowsers[browserId].close()

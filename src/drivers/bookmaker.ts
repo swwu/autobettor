@@ -77,12 +77,12 @@ export class BookmakerDriver extends shared.BaseBetDriver {
   }
 
   async awaitBetsReady(page: puppeteer.Page, section: string): Promise<void> {
-    await page.waitForSelector("div.schedule-container app-schedule-league");
+    await shared.timeout(800);
+    await page.waitForSelector("div.schedule-container > app-schedule-league");
+
     // this selector exists on the tennis page but not the default football
     // one
     await page.waitForSelector("app-game-mu div.sports-league-game");
-
-    await shared.timeout(800);
   }
 
   async getBankrollFromPage(page: puppeteer.Page): Promise<number> {
@@ -183,12 +183,9 @@ export class BookmakerDriver extends shared.BaseBetDriver {
     for (let i=0; i<5; i++) {
       maxAmountStr = await page.evaluate((maxAmountSelector: string): string => {
         const maxAmountNode = document.querySelector(maxAmountSelector);
-        console.log(maxAmountNode);
         if (maxAmountNode && maxAmountNode.textContent) {
-          console.log("halp");
           return maxAmountNode.textContent;
         } else {
-          console.log("holp");
           return "";
         }
       }, maxAmountSelector);

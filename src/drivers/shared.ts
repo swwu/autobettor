@@ -72,14 +72,6 @@ export function parseMoneyStr(money: string): number {
   return parseFloat(moneyStr.replace(/,/g, ''))
 }
 
-export async function promiseSerial<T>(promises: Array<Promise<T>>): Promise<Array<T>> {
-  return promises.reduce((chain: Promise<Array<T>>, next: Promise<T>): Promise<Array<T>> =>
-    chain.then((chainResult: Array<T>): Promise<Array<T>> => next.then(
-      (nextResult: T): Array<T> => chainResult.concat([nextResult]))),
-    Promise.resolve([]))
-}
-
-
 export async function domIsVisible(page: puppeteer.Page, selector: string): Promise<boolean> {
   return await page.evaluate((selector) => {
     const e = document.querySelector(selector);
@@ -192,10 +184,10 @@ export class BaseBetDriver {
 
     // TODO: retry if completely empty (sometimes timing issues happen with
     // await + rendering)
-    let results: MatchInfo[][] = await promiseSerial(
-      sections.map((x) => this.getBetsForSection(page, x)));
-
-    let matchInfos: MatchInfo[] = ([] as MatchInfo[]).concat(...results);
+    let matchInfos: MatchInfo[] = [];
+    for (let section of sections) {
+      matchInfos.push(...await this.getBetsForSection(page, section));
+    }
 
     // doesn't matter where, we're just going there to get the bankroll
     // TODO: make sure this works even when the atp section can't be accessed

@@ -3,7 +3,7 @@ import puppeteer from 'puppeteer';
 import * as shared from './shared';
 
 const ATP_SECTIONS = ["atp", "atp_qual", "atp_chal"];
-const WTA_SECTIONS = ["wta", "wta_qual"];
+const WTA_SECTIONS = ["wta", "wta_qual", "fed_cup", "itf_womens"];
 
 
 const sectionBtnLabels: { [key:string]: string } = {
@@ -11,7 +11,9 @@ const sectionBtnLabels: { [key:string]: string } = {
   "wta": "a#league_12332",
   "atp_qual": "a#league_13569",
   "wta_qual": "a#league_13570",
-  "atp_chal": "a#league_13558"
+  "atp_chal": "a#league_13558",
+  "fed_cup": "a#league_12575",
+  "itf_womens": "a#league_13562"
 };
 
 // See shared.BaseBetDriver for the expected behavior of each method

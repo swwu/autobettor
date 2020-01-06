@@ -13,7 +13,9 @@ const passwords: PasswordInfo = JSON.parse(fs.readFileSync('passwords.json', 'ut
 export interface RawMatchInfo {
   id: string
   // map of player name to odds
-  odds: { [key: string]: string }
+  outrightOdds: { [key: string]: string }
+  // map of player name to odds,adj
+  spreadOddsAdj: { [key: string]: [string, string] }
   // map of player name to index (0 or 1)
   playerIndex: { [key: string] : number }
 }
@@ -23,11 +25,16 @@ export function convertRawMatchInfos(rawMatchInfos: RawMatchInfo[]): MatchInfo[]
   for (const rawMatchInfo of rawMatchInfos) {
     let newMatchInfo: MatchInfo = {
       id: rawMatchInfo.id,
-      odds: {}
+      outrightOdds: {},
+      spreadOddsAdj: {}
     };
 
-    for (const [k, v] of Object.entries(rawMatchInfo.odds)) {
-      newMatchInfo.odds[k] = convOddsStr(v);
+    for (const [k, v] of Object.entries(rawMatchInfo.outrightOdds)) {
+      newMatchInfo.outrightOdds[k] = convOddsStr(v);
+    }
+
+    for (const [k, v] of Object.entries(rawMatchInfo.spreadOddsAdj)) {
+      newMatchInfo.spreadOddsAdj[k] = [convOddsStr(v[0]), convFractionStr(v[1])];
     }
 
     matchInfos.push(newMatchInfo);
@@ -39,7 +46,8 @@ export function convertRawMatchInfos(rawMatchInfos: RawMatchInfo[]): MatchInfo[]
 export interface MatchInfo {
   id: string
   // map of player name to odds
-  odds: { [key: string]: number }
+  outrightOdds: { [key: string]: number }
+  spreadOddsAdj: { [key: string]: [number, number] }
 }
 
 export interface BetsAndBankroll {
@@ -63,6 +71,19 @@ export function convOddsStr(odds: string): number {
     }
   } else {
     return odds_n;
+  }
+}
+
+export function convFractionStr(frac: string): number {
+  const s: string = frac.trim();
+
+  // we only need to handle 1/2 bc that's the only fraction that reliably
+  // shows up in spreads
+  if (s[s.length - 1] == "½") {
+    const n: number = parseFloat(s.slice(0,-1));
+    return n + Math.sign(n)*0.5;
+  } else {
+    return parseFloat(s);
   }
 }
 
@@ -109,8 +130,9 @@ export class BaseBetDriver {
   // Performs authentication at the beginning of the flow.
   async doAuth(page: puppeteer.Page): Promise<void> {
     await page.goto(this.loginUrl());
+    var authDone: Promise<void> = this.awaitAuthDone(page);
     await this.handleAuth(page);
-    await this.awaitAuthDone(page);
+    await authDone;
   }
 
   // Given an in-use page, determine if it needs authenticating and, if so,
@@ -198,6 +220,7 @@ export class BaseBetDriver {
   async tryBetInSection(
       page: puppeteer.Page,
       section: string,
+      betType: string,
       betUid: string,
       matchId: string,
       playerKey: string,
@@ -209,6 +232,7 @@ export class BaseBetDriver {
   async makeBet(
       page: puppeteer.Page,
       kind: string,
+      betType: string,
       betUid: string,
       matchId: string,
       playerKey: string,
@@ -219,7 +243,8 @@ export class BaseBetDriver {
 
     let succeeded = false;
     for (let section of sections) {
-      if (await this.tryBetInSection(page, section, betUid, matchId, playerKey, amount)) {
+      if (await this.tryBetInSection(page, section, betType,
+          betUid, matchId, playerKey, amount)) {
         succeeded = true;
         break;
       }

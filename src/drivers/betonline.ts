@@ -16,6 +16,12 @@ export class BetonlineDriver extends shared.BaseBetDriver {
     return 'https://www.betonline.ag/login';
   }
 
+  sectionsForKind(kind: string): string[] {
+    return (kind == "atp") ? ["atp", "challenger"] :
+      (kind == "wta") ? ["wta"] :
+      [];
+  }
+
   // betonline keeps us mostly logged in so we don't ever "skip" auth here
   async handleAuth(page: puppeteer.Page) {
     await page.waitForSelector("#CustomerID");
@@ -121,7 +127,8 @@ export class BetonlineDriver extends shared.BaseBetDriver {
 
         let matchInfo: shared.RawMatchInfo = {
           id: "",
-          odds: {},
+          outrightOdds: {},
+          spreadOddsAdj: {},
           playerIndex: {}
         };
 
@@ -131,15 +138,24 @@ export class BetonlineDriver extends shared.BaseBetDriver {
           let playerRow = playerRows[idx];
 
           const nameNode: HTMLElement | null = playerRow.querySelector("td.col_teamname");
-          const oddsNode: HTMLElement | null = playerRow.querySelector("td.moneylineodds");
+          const outrightNode: HTMLElement | null = playerRow.querySelector("td.moneylineodds");
 
-          if (nameNode && oddsNode) {
+          if (nameNode && outrightNode) {
             const playerName: string = nameNode.innerText.trim();
-            const playerOdds: string = oddsNode.innerText.trim();
+            const playerOutrightOdds: string = outrightNode.innerText.trim();
+
+            const spreadOddsNode: HTMLElement | null = <HTMLElement> playerRow.querySelector(".odds.bdevtt");
+            const spreadAdjNode: HTMLElement | null = <HTMLElement> playerRow.querySelector(".hdcp.bdevtt");
 
             names.push(playerName);
-            matchInfo.odds[playerName] = playerOdds;
+            matchInfo.outrightOdds[playerName] = playerOutrightOdds;
             matchInfo.playerIndex[playerName] = idx;
+
+            if (spreadOddsNode && spreadAdjNode) {
+              matchInfo.spreadOddsAdj[playerName] = [
+                spreadOddsNode.innerText.trim(),
+                spreadAdjNode.innerText.trim()];
+            }
           } else {
             return;
           }
@@ -157,6 +173,7 @@ export class BetonlineDriver extends shared.BaseBetDriver {
   async tryBetInSection(
       page: puppeteer.Page,
       section: string,
+      betType: string,
       betUid: string,
       matchId: string,
       playerKey: string,
@@ -173,7 +190,7 @@ export class BetonlineDriver extends shared.BaseBetDriver {
 
     this._insertSharedJs(page);
 
-    const clickNode: puppeteer.ElementHandle = (await page.evaluateHandle((matchId, playerKey) => {
+    const clickNode: puppeteer.ElementHandle = (await page.evaluateHandle((betType, matchId, playerKey) => {
 
       const eventNodes: NodeListOf<HTMLElement> = document.querySelectorAll("tbody.event");
 
@@ -190,9 +207,23 @@ export class BetonlineDriver extends shared.BaseBetDriver {
           let playerRow = playerRows[idx];
 
           const nameNode: HTMLElement | null = playerRow.querySelector("td.col_teamname");
-          const oddsNode: HTMLElement | null = playerRow.querySelector("td.moneylineodds");
+          const oddsNode: HTMLElement | null = (() => {
+            if (betType == "gamespread") {
+              // technically there are two of these (one for games under/over
+              // as well) but this should reliably return the first
+              return (<HTMLElement> playerRow.querySelector("td.hdcp"));
+            } else if (betType == "outright") {
+              return (<HTMLElement> playerRow.querySelector("td.moneylineodds"));
+            } else {
+              return null;
+            }
+          })();
 
           if (nameNode && oddsNode) {
+            // if it's blank then the bet doesn't exist, skip it
+            const oddsText: string = oddsNode.innerText.trim();
+            if (oddsText == "") return false;
+
             const playerName: string = nameNode.innerText.trim();
 
             names.push(playerName);
@@ -221,7 +252,7 @@ export class BetonlineDriver extends shared.BaseBetDriver {
       } else {
         throw new Error ("No clicknode found! " + matchId + " " + playerKey);
       }
-    }, matchId, playerKey) as puppeteer.ElementHandle);
+    }, betType, matchId, playerKey) as puppeteer.ElementHandle);
 
     await clickNode.click();
 

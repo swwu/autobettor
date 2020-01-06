@@ -63,6 +63,20 @@ let browsers = new browserManager.BrowserManager(TEST_MODE, 30*60*1000);
     });
   });
 
+  /*
+   * Expects a request body with the following fields:
+   *
+   * kind [str] - a string determining the kind of match. Should be atp|wta
+   * bet_type [str] - a string determining the kind of bet. Should be
+   * outright|gamespread
+   * bet_uid [str] - a unique string identifying the bet, used for logging
+   * purposes in order to associate prediction logs with autobettor logs.
+   * match_id [str] - a unique string identifying the match to bet. Should
+   * correspond to the id field returned by /get_bets_and_bankroll.
+   * player_key [str] - a unique string identifying the player to bet for.
+   * Should correspond to the player id returned in /get_bets_and_bankroll.
+   * amount [number] - the amount of dollars to bet.
+   */
   app.post('/make_bet', async (req, res, next) => {
     await browsers.withBrowserPage(async function(page: puppeteer.Page) {
       await page.setViewport({
@@ -75,6 +89,7 @@ let browsers = new browserManager.BrowserManager(TEST_MODE, 30*60*1000);
       try {
         await driver
           .makeBet(page, req.body["kind"],
+            req.body["bet_type"],
             req.body["bet_uid"], req.body["match_id"],
             req.body["player_key"], req.body["amount"]);
         res.send("");

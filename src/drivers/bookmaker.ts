@@ -124,20 +124,31 @@ export class BookmakerDriver extends shared.BaseBetDriver {
 
           // col 0 is time, col 1 is names, col 2 is moneyline odds
           let namesCol = betCols[1];
-          let oddsCol = betCols[2];
+          let outrightOddsCol = betCols[2];
+          let spreadOddsCol = betCols[3];
 
           let matchInfo: shared.RawMatchInfo = {
             id: gameId,
-            odds: {},
+            outrightOdds: {},
+            spreadOddsAdj: {},
             playerIndex: {}
           };
 
           for (let i=0; i<2; i++) {
             let k = <HTMLElement> namesCol.children[0].children[i];
-            let v = <HTMLElement> oddsCol.children[0].children[0].children[i];
+            let outrightNode = <HTMLElement> outrightOddsCol.children[0].children[0].children[i];
+            let spreadNode = <HTMLElement> spreadOddsCol.children[0].children[0].children[i];
 
             const playerKey = k.innerText;
-            matchInfo.odds[playerKey] = v.innerText;
+            matchInfo.outrightOdds[playerKey] = outrightNode.innerText;
+
+            let spreadOddsNode = <HTMLElement> spreadNode.querySelector(".odds");
+            let spreadAdjNode = <HTMLElement> spreadNode.querySelector(".points-line");
+            if (spreadOddsNode && spreadAdjNode) {
+              matchInfo.spreadOddsAdj[playerKey] = [
+                spreadOddsNode.innerText,
+                spreadAdjNode.innerText];
+            }
             matchInfo.playerIndex[playerKey] = i;
           }
 
@@ -151,6 +162,7 @@ export class BookmakerDriver extends shared.BaseBetDriver {
   async tryBetInSection(
       page: puppeteer.Page,
       section: string,
+      betType: string,
       betUid: string,
       matchId: string,
       playerKey: string,
@@ -169,7 +181,14 @@ export class BookmakerDriver extends shared.BaseBetDriver {
 
     if (playerIdx === undefined) return false;
 
-    const playerOddsSelector = ".mline-" + (playerIdx+1);
+    const playerOddsSelector = ((): string => {
+      if (betType == "gamespread") {
+        return ".hdp:nth-child(" + (playerIdx+1) + ")";
+      } else if (betType == "outright") {
+        return ".mline-" + (playerIdx+1);
+      }
+      return "NOTHING";
+    })();
 
     // TODO: exception handle misses etc etc
 

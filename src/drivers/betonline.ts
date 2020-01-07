@@ -178,9 +178,9 @@ export class BetonlineDriver extends shared.BaseBetDriver {
       betUid: string,
       matchId: string,
       playerKey: string,
-      amount: number): Promise<boolean> {
+      amount: number): Promise<number> {
     if(!(await this.navToSection(page, section)))
-      return false;
+      return 0;
 
     await this.awaitBetsReady(page, section);
 
@@ -260,8 +260,27 @@ export class BetonlineDriver extends shared.BaseBetDriver {
     await page.waitForSelector("td.wagertypetd.straighttd.highlight");
     await page.click("td.wagertypetd.straighttd.highlight");
 
-    // TODO: if the bet amount is greater than the maximum risk amount
-    // displayed, then bet that amount instead
+    // fetch max allowed amount
+    await page.waitForSelector("a.riskMaxLimitLink");
+    // this is required bc a clickhandler is bound to the link in some tick
+    // after it gets added to the dom
+    await shared.timeout(500);
+    await page.click("a.riskMaxLimitLink");
+
+    const maxAmountHandle = await page.waitForFunction(() => {
+      var inputNode = <HTMLInputElement> document.querySelector("input.wageramt.risk");
+      return inputNode && inputNode.value;
+    });
+
+    const maxAmount: number = await maxAmountHandle.evaluate((x: number) => x);
+
+    // clear the textfield again before we try submitting bet
+    await page.click("input.wageramt.risk", {clickCount: 3});
+    await page.keyboard.press('Backspace');
+
+    // if the bet amount is greater than the maximum risk amount displayed,
+    // then bet that amount instead
+    amount = Math.min(maxAmount, amount);
 
     await page.type("input.wageramt.risk", amount.toString());
 
@@ -280,8 +299,7 @@ export class BetonlineDriver extends shared.BaseBetDriver {
     // let the bet AJAX request resolve
     // TODO: await the confirmation message selector instead
     await shared.timeout(1000);
-    return true
+    return amount;
   }
-
 
 }

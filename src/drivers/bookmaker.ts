@@ -166,20 +166,20 @@ export class BookmakerDriver extends shared.BaseBetDriver {
       betUid: string,
       matchId: string,
       playerKey: string,
-      amount: number): Promise<boolean> {
+      amount: number): Promise<number> {
     if(!(await this.navToSection(page, section)))
-      return false;
+      return 0;
 
     await this.awaitBetsReady(page, section);
 
     const rawMatchInfos: shared.RawMatchInfo[] = await this.getRawMatchInfosFromPage(page);
     const rawMatchInfo = rawMatchInfos.find((e) => e.id === matchId);
 
-    if (rawMatchInfo === undefined) return false;
+    if (rawMatchInfo === undefined) return 0;
 
     const playerIdx = rawMatchInfo.playerIndex[playerKey];
 
-    if (playerIdx === undefined) return false;
+    if (playerIdx === undefined) return 0;
 
     const playerOddsSelector = ((): string => {
       if (betType == "gamespread") {
@@ -240,6 +240,6 @@ export class BookmakerDriver extends shared.BaseBetDriver {
     // let the bet AJAX request resolve
     // TODO: await the confirmation message selector instead
     await shared.timeout(1000);
-    return true
+    return amount;
   }
 }

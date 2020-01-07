@@ -87,12 +87,12 @@ let browsers = new browserManager.BrowserManager(TEST_MODE, 30*60*1000);
       const provider: string = req.body["provider"];
       let driver: shared.BaseBetDriver = getProviderDriver(provider);
       try {
-        await driver
+        const betAmount: number = await driver
           .makeBet(page, req.body["kind"],
             req.body["bet_type"],
             req.body["bet_uid"], req.body["match_id"],
             req.body["player_key"], req.body["amount"]);
-        res.send("");
+        res.send({"betAmount": betAmount});
       } catch(err) {
         next(err);
       }

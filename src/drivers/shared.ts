@@ -217,6 +217,8 @@ export class BaseBetDriver {
     return {bets: matchInfos, bankroll: await this.getBankrollFromPage(page)};
   }
 
+  // Returns 0 if no bet was made (e.g. if bet is not in the section).
+  // Otherwise returns the amount bet.
   async tryBetInSection(
       page: puppeteer.Page,
       section: string,
@@ -224,9 +226,9 @@ export class BaseBetDriver {
       betUid: string,
       matchId: string,
       playerKey: string,
-      amount: number): Promise<boolean> {
+      amount: number): Promise<number> {
     throw "tryBetInSection not implemented";
-    return false
+    return 0;
   }
 
   async makeBet(
@@ -236,22 +238,22 @@ export class BaseBetDriver {
       betUid: string,
       matchId: string,
       playerKey: string,
-      amount: number) {
+      amount: number): Promise<number> {
     await this.doAuth(page);
 
     const sections: string[] = this.sectionsForKind(kind);
 
-    let succeeded = false;
+    let betAmount: number = 0;
     for (let section of sections) {
-      if (await this.tryBetInSection(page, section, betType,
-          betUid, matchId, playerKey, amount)) {
-        succeeded = true;
-        break;
-      }
+      betAmount = await this.tryBetInSection(page, section, betType,
+          betUid, matchId, playerKey, amount);
+      if (betAmount > 0) break;
     }
 
-    if (!succeeded) {
+    if (betAmount == 0) {
       throw "no bet was made, most likely invalid bet info: " + matchId + "," + playerKey;
     }
+
+    return betAmount;
   }
 }

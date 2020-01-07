@@ -53,7 +53,8 @@ export class BetonlineDriver extends shared.BaseBetDriver {
     // TODO: ensure that the text of the node in question is correct
     // when we impl this we can remove the 500ms wait
     await page.waitForSelector(".sportsPeriodTdCol1");
-    await shared.timeout(1000);
+    await page.waitForSelector("tbody.event td.col_teamname");
+    await shared.timeout(500);
   }
 
   async _insertSharedJs(page: puppeteer.Page) {

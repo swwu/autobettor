@@ -193,6 +193,7 @@ export class BookmakerDriver extends shared.BaseBetDriver {
     // TODO: exception handle misses etc etc
 
     const clickSelector = "app-game-mu div.sports-league-game[idgame=\"" + matchId + "\"] " + playerOddsSelector;
+    await page.waitForSelector(clickSelector);
     await page.click(clickSelector);
 
     const maxAmountSelector = ".col.bet-limits > a:nth-child(2) .amount";

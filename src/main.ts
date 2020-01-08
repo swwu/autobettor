@@ -78,6 +78,8 @@ let browsers = new browserManager.BrowserManager(TEST_MODE, 30*60*1000);
    * amount [number] - the amount of dollars to bet.
    */
   app.post('/make_bet', async (req, res, next) => {
+    res.setHeader('Content-Type', 'application/json');
+
     await browsers.withBrowserPage(async function(page: puppeteer.Page) {
       await page.setViewport({
         width: 1200,

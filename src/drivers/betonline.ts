@@ -292,13 +292,14 @@ export class BetonlineDriver extends shared.BaseBetDriver {
 
     // TODO: technically this is a security hole because it would allow
     // arbitrary write access to any directory
-    await page.screenshot({path: "bet_screenshots/betonline_" + betUid + ".png"});
+    await page.screenshot({path: "bet_screenshots/betonline_" + betUid + "_preclick.png"});
 
     if (!this.test_mode) await page.click("button#slipConfirmBet");
 
     // let the bet AJAX request resolve
     // TODO: await the confirmation message selector instead
-    await shared.timeout(1000);
+    await shared.timeout(2000);
+    await page.screenshot({path: "bet_screenshots/betonline_" + betUid + "_postclick.png"});
     return amount;
   }
 

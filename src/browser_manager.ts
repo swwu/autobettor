@@ -76,7 +76,7 @@ export class BrowserManager {
       console.log(logPrefixNowString() + "Browser " + browserId + " done, closing");
       // don't need to await this, since nothing depends on it being finished
       // TODO: decide if we want to do this in testmode?
-      this.allBrowsers[browserId].close()
+      this.allBrowsers[browserId].close();
       delete this.allBrowsers[browserId];
     }
   }
@@ -93,7 +93,7 @@ export class BrowserManager {
     await f(page);
 
     // once the client is done with the page, close the page
-    if(!this.testMode) page.close()
+    if(!this.testMode) page.close();
 
     // then decrement the latch
     --this.allBrowserLatches[browserId];

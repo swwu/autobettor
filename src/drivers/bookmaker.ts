@@ -235,9 +235,11 @@ export class BookmakerDriver extends shared.BaseBetDriver {
     // arbitrary write access to any directory
     await page.screenshot({path: "bet_screenshots/bookmaker_" + betUid + "_preclick.png"});
 
-    if (!this.test_mode) await page.click(".place-bet-container button");
+    if (!this.test_mode) {
+      await page.click(".place-bet-container button");
+      await page.waitForSelector(".bet.success.bet-message");
+    }
 
-    await page.waitForSelector(".bet.success.bet-message");
     await shared.timeout(500);
 
     await page.screenshot({path: "bet_screenshots/bookmaker_" + betUid + "_postclick.png"});

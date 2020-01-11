@@ -185,6 +185,7 @@ export class BetonlineDriver extends shared.BaseBetDriver {
     // clear existing straightbets if we have some for some reason
     while(await page.$("div.cross") !== null) {
       await page.click("div.cross");
+      await shared.timeout(500);
     }
 
     this._insertSharedJs(page);

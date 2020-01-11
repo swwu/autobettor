@@ -45,15 +45,13 @@ export class BetonlineDriver extends shared.BaseBetDriver {
     await page.goto("https://www.betonline.ag/sportsbook/tennis/" + section, {
       waitUntil: "networkidle0"
     })
-    await page.waitForSelector(".sportsPeriodTdCol1");
+    //await page.waitForSelector(".sportsPeriodTdCol1");
     return true;
   }
 
   async awaitBetsReady(page: puppeteer.Page, section: string) {
-    // TODO: ensure that the text of the node in question is correct
-    // when we impl this we can remove the 500ms wait
-    await page.waitForSelector(".sportsPeriodTdCol1");
-    await page.waitForSelector("tbody.event td.col_teamname");
+    //await page.waitForSelector(".sportsPeriodTdCol1");
+    //await page.waitForSelector("tbody.event td.col_teamname");
     await shared.timeout(500);
   }
 

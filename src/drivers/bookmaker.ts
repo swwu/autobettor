@@ -5,26 +5,43 @@ import * as shared from './shared';
 const ATP_SECTIONS = ["atp", "atp_qual", "atp_chal"];
 const WTA_SECTIONS = ["wta", "wta_qual", "fed_cup", "itf_womens"];
 
-
-const sectionBtnLabels: { [key:string]: string } = {
-  "atp": "a#league_12331",
-  "wta": "a#league_12332",
-  "atp_qual": "a#league_13569",
-  "wta_qual": "a#league_13570",
-  "atp_chal": "a#league_13558",
-  "fed_cup": "a#league_12575",
-  "itf_womens": "a#league_13562"
-};
+// TODO: worry about wta qual, atp qual, fed cup
+const urlPrefixes: { [key:string]: string[] } = {
+  "atp": [
+    "/en/sports/tennis/atp/",
+    "/en/sports/tennis/atp-challenger/"
+  ],
+  "wta": [
+    "/en/sports/tennis/wta/",
+    "/en/sports/tennis/itf/"
+  ]
+}
 
 // See shared.BaseBetDriver for the expected behavior of each method
 export class BookmakerDriver extends shared.BaseBetDriver {
 
   loginUrl(): string { return 'https://bookmaker.eu/'; }
 
-  sectionsForKind(kind: string): string[] {
-    return (kind == "atp") ? ATP_SECTIONS :
-      (kind == "wta") ? WTA_SECTIONS :
-      [];
+  async sectionsForKind(page: puppeteer.Page, kind: string): Promise<string[]> {
+    let prefixes = urlPrefixes[kind];
+
+    const links: string[] = await page.evaluate(
+      (prefixes: string[]) => {
+        let ret: string[] = [];
+        document.querySelectorAll("a[type=league]").forEach(
+          (node: Element) => {
+            const href = node.getAttribute('href');
+            if (href !== null) {
+              ret.push(href);
+            }
+          }
+        );
+
+        return ret;
+      }, prefixes);
+
+    return links.filter((href: string) =>
+      prefixes.some((prefix: string) => href.startsWith(prefix)));
   }
 
   async handleAuth(page: puppeteer.Page): Promise<void> {
@@ -45,36 +62,11 @@ export class BookmakerDriver extends shared.BaseBetDriver {
     await page.waitForSelector("a[cat=\"TENNIS\"]");
   }
 
-  // section is usually just "kind", i.e. atp, wta, etc, but also includes quals
+  // section is the url of the section
   async navToSection(page: puppeteer.Page, section: string): Promise<boolean> {
-    const btnSelector: string = sectionBtnLabels[section];
-    if (!btnSelector) throw new Error("Invalid section: " + section);
-
-    // retry up to three times, since sometimes there's a splash promo that
-    // needs dismissing
-    for(let i=0; i<3; ++i) {
-      try {
-        if (!(await shared.domIsVisible(page, btnSelector))) {
-          await page.click("a[cat=\"TENNIS\"]");
-          await shared.timeout(500);
-        }
-
-        await page.waitForSelector(btnSelector, {timeout: 2000});
-        await shared.timeout(100);
-        await page.click(btnSelector);
-        break;
-      } catch(e) {
-        if (e.message.startsWith("Node is either not visible or not an HTMLElement")) {
-          console.log("Couldn't find visible menu section node, clicking again");
-        } else if (e.message.startsWith("waiting for selector")) {
-          console.log("Button doesn't exist, aborting: " + section);
-          return false;
-        } else {
-          console.log(e);
-        }
-      }
-    }
-
+    await page.goto("https://be.bookmaker.eu/" + section, {
+      waitUntil: "networkidle0"
+    })
     return true;
   }
 

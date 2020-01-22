@@ -16,7 +16,7 @@ export class BetonlineDriver extends shared.BaseBetDriver {
     return 'https://www.betonline.ag/login';
   }
 
-  sectionsForKind(kind: string): string[] {
+  async sectionsForKind(page: puppeteer.Page, kind: string): Promise<string[]> {
     return (kind == "atp") ? ["atp", "challenger"] :
       (kind == "wta") ? ["wta"] :
       [];

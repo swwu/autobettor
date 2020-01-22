@@ -191,7 +191,7 @@ export class BaseBetDriver {
   }
 
   // returns a list of all sections for a given kind
-  sectionsForKind(kind: string): string[] {
+  async sectionsForKind(page: puppeteer.Page, kind: string): Promise<string[]> {
     return (kind == "atp") ? ["atp"] :
       (kind == "wta") ? ["wta"] :
       [];
@@ -202,7 +202,7 @@ export class BaseBetDriver {
       kind: string): Promise<BetsAndBankroll> {
     await this.doAuth(page);
 
-    const sections: string[] = this.sectionsForKind(kind);
+    const sections: string[] = await this.sectionsForKind(page, kind);
 
     // TODO: retry if completely empty (sometimes timing issues happen with
     // await + rendering)
@@ -212,8 +212,7 @@ export class BaseBetDriver {
     }
 
     // doesn't matter where, we're just going there to get the bankroll
-    // TODO: make sure this works even when the atp section can't be accessed
-    await this.navToSection(page, "atp");
+    await this.navToSection(page, sections[0]);
     return {bets: matchInfos, bankroll: await this.getBankrollFromPage(page)};
   }
 
@@ -241,7 +240,7 @@ export class BaseBetDriver {
       amount: number): Promise<number> {
     await this.doAuth(page);
 
-    const sections: string[] = this.sectionsForKind(kind);
+    const sections: string[] = await this.sectionsForKind(page, kind);
 
     let betAmount: number = 0;
     for (let section of sections) {

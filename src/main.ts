@@ -11,6 +11,7 @@ import morganBody from 'morgan-body';
 
 import * as bookmaker from './drivers/bookmaker';
 import * as betonline from './drivers/betonline';
+import * as pyckio from './drivers/pyckio';
 import * as shared from './drivers/shared';
 
 import * as browserManager from './browser_manager';
@@ -22,6 +23,7 @@ const TEST_MODE = true;
 function getProviderDriver(provider: string): shared.BaseBetDriver {
   return (provider == "bookmaker") ? new bookmaker.BookmakerDriver(TEST_MODE) :
     (provider == "betonline") ? new betonline.BetonlineDriver(TEST_MODE) :
+    (provider == "pyckio") ? new pyckio.PyckioDriver(TEST_MODE) :
     new shared.BaseBetDriver(TEST_MODE); // TODO: err-handle this case correctly
 }
 

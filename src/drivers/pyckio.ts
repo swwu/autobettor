@@ -12,6 +12,9 @@ let jsonRequest = request.defaults({
   }
 });
 
+const PYCKIO_UNIT_BASIS = 1000;
+const PYCKIO_POW_ADJ = Math.log(10) / Math.log(PYCKIO_UNIT_BASIS);
+
 // See shared.BaseBetDriver for the expected behavior of each method
 export class PyckioDriver extends shared.BaseBetDriver {
 
@@ -76,7 +79,7 @@ export class PyckioDriver extends shared.BaseBetDriver {
   async getBankrollFromPage(page: puppeteer.Page): Promise<number> {
     // this isn't a real bet, instead it's just to normalize staking. We want
     // to capture everything over about 0.001 stake size
-    return 1000;
+    return PYCKIO_UNIT_BASIS;
   }
 
   async matchInfoForEvent(eventSlug: string): Promise<shared.MatchInfo|null> {
@@ -137,9 +140,55 @@ export class PyckioDriver extends shared.BaseBetDriver {
       waitUntil: "networkidle0"
     });
 
-    // POST https://api.pyckio.com/twips
-    //{"event":"5e20478a60b2e432a60f7039","pick":{"categories":["tennis","tennis-atp","tennis-atp-australianopen"],"oddsType":"52","price":1.07,"bet":"AWAY","stake":1,"maxBet":675}}
-    return 0;
+    // we scale our value between 1 and 10
+    const betUnits: number = Math.min(10, Math.ceil(Math.pow(amount/2, PYCKIO_POW_ADJ)));
+
+    const clickedStake = await page.evaluateHandle((playerKey: string, betUnits: number): boolean => {
+      let betPaneNode: HTMLElement|null = <HTMLElement>document.querySelector(
+        '.tab-pane.pick-12.active')
+
+      if (!betPaneNode) return false;
+
+      const trNodes = Array.from(betPaneNode.querySelectorAll('tbody[class="1x2"]>tr'));
+
+      for (let trNode of trNodes) {
+        // first check that this is the correct row for the player
+        const nameNode: HTMLElement|null = <HTMLElement>trNode.querySelector(
+          'th[scope=row]');
+        if (!nameNode) continue;
+        const nameText: string = nameNode.innerText.trim();
+        if (nameText != playerKey) continue;
+
+        // then put in the stake yo
+        const stakeNode: HTMLElement|null = <HTMLElement>trNode.querySelector(
+          '.btn.btn-default.js-stake>input[value="' + betUnits + '"]');
+
+        if (stakeNode) {
+          stakeNode.click();
+          return true;
+        } else {
+          return false;
+        }
+      }
+      return false;
+    }, playerKey, betUnits);
+
+    if (clickedStake) {
+      await page.screenshot({path: "bet_screenshots/pyckio_" + betUid + "_preclick.png"});
+
+      if (!this.test_mode) await page.click('button.js-sendtwip[type="submit"]');
+
+      // let the bet AJAX request resolve
+      // TODO: await the confirmation message selector instead; in this case
+      // it's slightly strange because pyckio has all 3 possible confirm
+      // messages already in the dom with display:none
+      await shared.timeout(2000);
+      await page.screenshot({path: "bet_screenshots/pyckio_" + betUid + "_postclick.png"});
+
+      return amount;
+    } else {
+      return 0;
+    }
   }
 }
 

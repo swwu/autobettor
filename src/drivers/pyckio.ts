@@ -135,10 +135,19 @@ export class PyckioDriver extends shared.BaseBetDriver {
       matchId: string,
       playerKey: string,
       amount: number): Promise<number> {
+
+    // don't bet if not outright, we only support outrights properly atm
+    if (betType != "outright") {
+      return 0;
+    }
+
     // matchId is the slug
     await page.goto("https://pyckio.com/i/#!match/" + matchId, {
       waitUntil: "networkidle0"
     });
+
+        //await page.waitForSelector('.js-pinnacle');
+        //await page.waitForSelector('.tab-pane.pick-12.active');
 
     // we scale our value between 1 and 10
     const betUnits: number = Math.min(10, Math.ceil(Math.pow(amount/2, PYCKIO_POW_ADJ)));

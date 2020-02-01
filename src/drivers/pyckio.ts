@@ -65,7 +65,8 @@ export class PyckioDriver extends shared.BaseBetDriver {
   // section is usually just "kind", i.e. atp, wta, etc, but also includes quals
   async navToSection(page: puppeteer.Page, section: string): Promise<boolean> {
     await page.goto("https://pyckio.com/i/#!home/" + section, {
-      waitUntil: "networkidle0"
+      waitUntil: "networkidle0",
+      timeout: 60000 // pyckio can be quite slow
     });
     return true;
   }
@@ -143,7 +144,8 @@ export class PyckioDriver extends shared.BaseBetDriver {
 
     // matchId is the slug
     await page.goto("https://pyckio.com/i/#!match/" + matchId, {
-      waitUntil: "networkidle0"
+      waitUntil: "networkidle0",
+      timeout: 60000 // pyckio can be quite slow
     });
 
         //await page.waitForSelector('.js-pinnacle');

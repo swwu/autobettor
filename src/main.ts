@@ -18,7 +18,8 @@ import * as browserManager from './browser_manager';
 
 const app = express();
 
-const TEST_MODE = true;
+// test mode on by default
+const TEST_MODE = (<Array<string|undefined>>['1','true',undefined]).includes(process.env['TEST_MODE']);
 
 function getProviderDriver(provider: string): shared.BaseBetDriver {
   return (provider == "bookmaker") ? new bookmaker.BookmakerDriver(TEST_MODE) :

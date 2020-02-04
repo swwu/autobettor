@@ -90,6 +90,10 @@ export class BrowserManager {
 
     // create the page and give it to the client, and let them finish with it
     const page = await browser.newPage();
+
+    // headless mode normally specifies HeadlessChrome in the user-agent,
+    // which we don't want
+    await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36');
     await f(page);
 
     // once the client is done with the page, close the page

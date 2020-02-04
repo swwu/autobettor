@@ -1,6 +1,10 @@
-import puppeteer from 'puppeteer';
+import puppeteer_extra from 'puppeteer-extra'
+import puppeteer from 'puppeteer'
+import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 
 import { v4 as uuidv4 } from 'uuid';
+
+puppeteer_extra.use(StealthPlugin());
 
 function logPrefixNowString(): string {
   return "[" + (new Date().toUTCString()) + "] ";
@@ -26,7 +30,7 @@ export class BrowserManager {
   }
 
   async _launchBrowser(): Promise<puppeteer.Browser> {
-    this.currentBrowser = await puppeteer.launch({
+    this.currentBrowser = await puppeteer_extra.launch({
       headless: !this.testMode
     });
     return this.currentBrowser;
@@ -91,9 +95,8 @@ export class BrowserManager {
     // create the page and give it to the client, and let them finish with it
     const page = await browser.newPage();
 
-    // headless mode normally specifies HeadlessChrome in the user-agent,
-    // which we don't want
-    await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36');
+    // TODO: if anything in f throws an exception, catch it and take a
+    // screenshot
     await f(page);
 
     // once the client is done with the page, close the page

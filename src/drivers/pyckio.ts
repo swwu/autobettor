@@ -13,7 +13,6 @@ let jsonRequest = request.defaults({
 });
 
 const PYCKIO_UNIT_BASIS = 1000;
-const PYCKIO_POW_ADJ = Math.log(10) / Math.log(PYCKIO_UNIT_BASIS);
 
 // See shared.BaseBetDriver for the expected behavior of each method
 export class PyckioDriver extends shared.BaseBetDriver {
@@ -151,8 +150,9 @@ export class PyckioDriver extends shared.BaseBetDriver {
         //await page.waitForSelector('.js-pinnacle');
         //await page.waitForSelector('.tab-pane.pick-12.active');
 
-    // we scale our value between 1 and 10
-    const betUnits: number = Math.min(10, Math.ceil(Math.pow(amount/2, PYCKIO_POW_ADJ)));
+    // we scale our value so that 0 is 0 and 0.1*PYCKIO_UNIT_BASIS is 10,
+    // then clamp it between 0 and 10
+    const betUnits: number = Math.min(10, Math.ceil(amount*10.0*(1/0.1)/PYCKIO_UNIT_BASIS));
 
     const clickedStake = await page.evaluateHandle((playerKey: string, betUnits: number): boolean => {
       let betPaneNode: HTMLElement|null = <HTMLElement>document.querySelector(

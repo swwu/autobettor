@@ -184,7 +184,12 @@ export class BaseBetDriver {
     if(!(await this.navToSection(page, section)))
       return [];
 
-    await this.awaitBetsReady(page, section);
+    try {
+      await this.awaitBetsReady(page, section);
+    } catch (err) {
+      console.log(err); // err should always be TimeoutError here
+      return [];
+    }
 
     return convertRawMatchInfos(
       await this.getRawMatchInfosFromPage(page));

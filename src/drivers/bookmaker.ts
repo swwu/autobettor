@@ -72,11 +72,11 @@ export class BookmakerDriver extends shared.BaseBetDriver {
 
   async awaitBetsReady(page: puppeteer.Page, section: string): Promise<void> {
     await shared.timeout(800);
-    await page.waitForSelector("div.schedule-container > app-schedule-league");
+    await page.waitForSelector("div.schedule-container > app-schedule-league", { timeout: 5000 });
 
     // this selector exists on the tennis page but not the default football
     // one
-    await page.waitForSelector("app-game-mu div.sports-league-game");
+    await page.waitForSelector("app-game-mu div.sports-league-game", { timeout: 5000 });
   }
 
   async getBankrollFromPage(page: puppeteer.Page): Promise<number> {
@@ -162,7 +162,12 @@ export class BookmakerDriver extends shared.BaseBetDriver {
     if(!(await this.navToSection(page, section)))
       return 0;
 
-    await this.awaitBetsReady(page, section);
+    try {
+      await this.awaitBetsReady(page, section);
+    } catch (err) {
+      console.log(err); // err should always be TimeoutError here
+      return 0;
+    }
 
     const rawMatchInfos: shared.RawMatchInfo[] = await this.getRawMatchInfosFromPage(page);
     const rawMatchInfo = rawMatchInfos.find((e) => e.id === matchId);
@@ -193,17 +198,19 @@ export class BookmakerDriver extends shared.BaseBetDriver {
     await page.waitForSelector(maxAmountSelector);
 
     let maxAmountStr = "";
+    let maxAmount = 0;
     for (let i=0; i<5; i++) {
       maxAmountStr = await page.evaluate((maxAmountSelector: string): string => {
         const maxAmountNode = document.querySelector(maxAmountSelector);
-        if (maxAmountNode && maxAmountNode.textContent) {
+        if (maxAmountNode && maxAmountNode.textContent && maxAmountNode.textContent.trim().length > 0) {
           return maxAmountNode.textContent;
         } else {
           return "";
         }
       }, maxAmountSelector);
+      maxAmount = shared.parseMoneyStr(maxAmountStr);
 
-      if (maxAmountStr) {
+      if (maxAmountStr && !Number.isNaN(maxAmount)) {
         break;
       }
 
@@ -212,10 +219,8 @@ export class BookmakerDriver extends shared.BaseBetDriver {
     }
 
     if (!maxAmountStr) {
-      throw new Error("Couldn't find max amount node");
+      throw new Error("Couldn't read max amount node");
     }
-
-    const maxAmount = shared.parseMoneyStr(maxAmountStr);
 
     // if the bet amount is greater than the maximum risk amount displayed,
     // then bet that amount instead

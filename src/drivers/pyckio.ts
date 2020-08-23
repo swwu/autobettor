@@ -152,7 +152,7 @@ export class PyckioDriver extends shared.BaseBetDriver {
 
     // we scale our value so that 0 is 0 and 0.05*PYCKIO_UNIT_BASIS is 10,
     // then clamp it between 0 and 10
-        const betUnits: number = Math.min(10, Math.ceil((amount/PYCKIO_UNIT_BASIS)*(10.0/0.05)));
+    const betUnits: number = Math.min(10, Math.ceil((amount/PYCKIO_UNIT_BASIS)*(10.0/0.05)));
 
     const clickedStake = await page.evaluateHandle((playerKey: string, betUnits: number): boolean => {
       let betPaneNode: HTMLElement|null = <HTMLElement>document.querySelector(

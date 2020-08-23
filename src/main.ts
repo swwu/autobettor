@@ -28,7 +28,7 @@ function getProviderDriver(provider: string): shared.BaseBetDriver {
     new shared.BaseBetDriver(TEST_MODE); // TODO: err-handle this case correctly
 }
 
-let browsers = new browserManager.BrowserManager(TEST_MODE, 30*60*1000);
+let browsers = new browserManager.BrowserManager(TEST_MODE, 10*60*1000);
 
 (async () => {
   if (!fs.existsSync('bet_screenshots')){

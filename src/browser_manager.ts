@@ -31,7 +31,10 @@ export class BrowserManager {
 
   async _launchBrowser(): Promise<puppeteer.Browser> {
     this.currentBrowser = await puppeteer_extra.launch({
-      headless: !this.testMode
+      headless: !this.testMode,
+      // TODO: set this for BetOnline (since it uses anti-puppeteer chromium
+      // detection now)
+      //executablePath: '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome'
     });
     return this.currentBrowser;
   }

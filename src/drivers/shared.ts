@@ -37,6 +37,11 @@ export function convertRawMatchInfos(rawMatchInfos: RawMatchInfo[]): MatchInfo[]
       newMatchInfo.spreadOddsAdj[k] = [convOddsStr(v[0]), convFractionStr(v[1])];
     }
 
+    if (Object.values(newMatchInfo.outrightOdds).some(Number.isNaN)) {
+      // NaN outright odds are bad and break contract/serialize as null, skip them
+      continue;
+    }
+
     matchInfos.push(newMatchInfo);
   }
 

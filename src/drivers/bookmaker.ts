@@ -106,7 +106,8 @@ export class BookmakerDriver extends shared.BaseBetDriver {
 
       let rets: shared.RawMatchInfo[] = [];
 
-      let betNodes: NodeListOf<HTMLElement> = document.querySelectorAll("app-game-mu div.sports-league-game");
+      let betNodes: NodeListOf<HTMLElement> = document.querySelectorAll(
+        "app-game-mu div.sports-league-game:not(.live-game)");
 
       betNodes.forEach((betNode) => {
         let gameId = betNode.getAttribute("idgame");
@@ -169,6 +170,14 @@ export class BookmakerDriver extends shared.BaseBetDriver {
       return 0;
     }
 
+    // Dismiss any modals, if they exist
+    try {
+      // TODO: this will probably change constantly with each new modal, so...
+      await page.click("button#ct_btnOk[data-dismiss=\"modal\"]");
+    } catch (err) {
+      console.log("No modal to close");
+    }
+
     const rawMatchInfos: shared.RawMatchInfo[] = await this.getRawMatchInfosFromPage(page);
     const rawMatchInfo = rawMatchInfos.find((e) => e.id === matchId);
 
@@ -188,10 +197,16 @@ export class BookmakerDriver extends shared.BaseBetDriver {
     })();
 
     // TODO: exception handle misses etc etc
+    const clickSelector: string = (
+      "app-game-mu div.sports-league-game[idgame=\"" + matchId + "\"] " +
+      playerOddsSelector + " > label");
 
-    const clickSelector = "app-game-mu div.sports-league-game[idgame=\"" + matchId + "\"] " + playerOddsSelector;
     await page.waitForSelector(clickSelector);
-    await page.click(clickSelector);
+    // for some reason page.click doesn't work on this element any more
+    //await page.click(clickSelector);
+    await page.evaluate((clickSelector: string) => {
+      (document.querySelector(clickSelector) as HTMLElement).click();
+    }, clickSelector);
 
     const maxAmountSelector = ".col.bet-limits > a:nth-child(2) .amount";
 

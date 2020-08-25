@@ -93,9 +93,12 @@ export function convFractionStr(frac: string): number {
 }
 
 export function parseMoneyStr(money: string): number {
-  let moneyStr = money.trim();
-  if (moneyStr[0] == "$") moneyStr = moneyStr.substring(1);
-  return parseFloat(moneyStr.replace(/,/g, ''))
+  let moneyMatches = money.replace(/,/g, '').match(/[\d.]+/g);
+  if (moneyMatches === null || moneyMatches.length !== 1) {
+    throw new Error(
+      "Unparseable money string " + JSON.stringify(money));
+  }
+  return parseFloat(moneyMatches[0]);
 }
 
 export async function domIsVisible(page: puppeteer.Page, selector: string): Promise<boolean> {
